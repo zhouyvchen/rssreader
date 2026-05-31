@@ -32,6 +32,10 @@ public class MainActivity extends Activity {
     private EditText feedUrlEditText;
     private TextView titleTextView;
     private RecyclerView recyclerView;
+    private Button feedsButton;
+    private Button articlesButton;
+    private Button feedStreamButton;
+    private Button favoritesButton;
     private RssRepository repository;
     private FeedAdapter feedAdapter;
     private ArticleAdapter articleAdapter;
@@ -66,6 +70,10 @@ public class MainActivity extends Activity {
         feedUrlEditText = findViewById(R.id.feedUrlEditText);
         titleTextView = findViewById(R.id.titleTextView);
         recyclerView = findViewById(R.id.recyclerView);
+        feedsButton = findViewById(R.id.feedsButton);
+        articlesButton = findViewById(R.id.articlesButton);
+        feedStreamButton = findViewById(R.id.feedStreamButton);
+        favoritesButton = findViewById(R.id.favoritesButton);
     }
 
     private void setupList() {
@@ -79,10 +87,6 @@ public class MainActivity extends Activity {
 
     private void setupClicks() {
         Button addFeedButton = findViewById(R.id.addFeedButton);
-        Button feedsButton = findViewById(R.id.feedsButton);
-        Button articlesButton = findViewById(R.id.articlesButton);
-        Button favoritesButton = findViewById(R.id.favoritesButton);
-        Button feedStreamButton = findViewById(R.id.feedStreamButton);
 
         addFeedButton.setOnClickListener(v -> addFeed());
         feedsButton.setOnClickListener(v -> loadFeeds());
@@ -126,6 +130,7 @@ public class MainActivity extends Activity {
 
     private void loadFeeds() {
         currentMode = MODE_FEEDS;
+        updateTabs();
         titleTextView.setText("订阅源");
         executor.execute(() -> {
             List<FeedEntity> feeds = repository.getFeeds();
@@ -138,6 +143,7 @@ public class MainActivity extends Activity {
 
     private void loadArticles(FeedEntity feed) {
         currentMode = MODE_ARTICLES;
+        updateTabs();
         titleTextView.setText(feed.title);
         executor.execute(() -> {
             List<ArticleEntity> articles = repository.getArticles(feed.id);
@@ -150,6 +156,7 @@ public class MainActivity extends Activity {
 
     private void loadAllArticles() {
         currentMode = MODE_ALL_ARTICLES;
+        updateTabs();
         titleTextView.setText("聚合文章流");
         executor.execute(() -> {
             if (repository.feedIsEmpty()) {
@@ -168,6 +175,7 @@ public class MainActivity extends Activity {
 
     private void loadFavorites() {
         currentMode = MODE_FAVORITES;
+        updateTabs();
         titleTextView.setText("收藏");
         executor.execute(() -> {
             List<ArticleEntity> favorites = repository.getFavorites();
@@ -192,6 +200,19 @@ public class MainActivity extends Activity {
         } else if (currentMode == MODE_ARTICLES && selectedFeed != null) {
             loadArticles(selectedFeed);
         }
+    }
+
+    private void updateTabs() {
+        setTabSelected(feedsButton, currentMode == MODE_FEEDS);
+        setTabSelected(articlesButton, currentMode == MODE_ARTICLES);
+        setTabSelected(feedStreamButton, currentMode == MODE_ALL_ARTICLES);
+        setTabSelected(favoritesButton, currentMode == MODE_FAVORITES);
+    }
+
+    private void setTabSelected(Button button, boolean selected) {
+        button.setSelected(selected);
+        button.setTextColor(getColor(selected ? R.color.color_primary : R.color.text_secondary));
+        button.setTypeface(null, selected ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
     }
 
     private void toast(String message) {

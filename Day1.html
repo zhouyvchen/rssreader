@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Day1 - Android Java RSS 阅读器学习复盘</title>
+    <style>
+        :root {
+            --bg: #f7f8fa;
+            --panel: #ffffff;
+            --text: #202124;
+            --muted: #5f6368;
+            --line: #dfe3ea;
+            --accent: #1769aa;
+            --accent-soft: #e8f2fb;
+            --code-bg: #f1f3f4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            line-height: 1.7;
+        }
+
+        main {
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 32px 20px 56px;
+        }
+
+        header {
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 32px;
+            line-height: 1.25;
+        }
+
+        h2 {
+            margin: 32px 0 14px;
+            font-size: 24px;
+            border-left: 4px solid var(--accent);
+            padding-left: 12px;
+        }
+
+        h3 {
+            margin: 22px 0 8px;
+            font-size: 18px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+
+        ul {
+            margin: 8px 0 0;
+            padding-left: 24px;
+        }
+
+        li {
+            margin: 6px 0;
+        }
+
+        code {
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--code-bg);
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.94em;
+        }
+
+        pre {
+            margin: 12px 0;
+            padding: 14px 16px;
+            overflow-x: auto;
+            border-radius: 8px;
+            background: #202124;
+            color: #f8f9fa;
+            line-height: 1.55;
+        }
+
+        pre code {
+            padding: 0;
+            background: transparent;
+            color: inherit;
+        }
+
+        .summary {
+            padding: 16px 18px;
+            border-radius: 8px;
+            background: var(--accent-soft);
+            border: 1px solid #c9dff0;
+        }
+
+        .section {
+            padding: 18px 20px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            margin-top: 16px;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .tag {
+            display: inline-block;
+            margin: 4px 6px 4px 0;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--code-bg);
+            color: var(--muted);
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <h1>Day1 - Android Java RSS 阅读器学习复盘</h1>
+        <p class="muted">主题：简洁 RSS 阅读器 Demo，从功能实现到问题排查。</p>
+        <div>
+            <span class="tag">Java</span>
+            <span class="tag">Room</span>
+            <span class="tag">RecyclerView</span>
+            <span class="tag">XmlPullParser</span>
+            <span class="tag">HttpURLConnection</span>
+            <span class="tag">WebView</span>
+        </div>
+    </header>
+
+    <section class="summary">
+        <strong>今日核心收获：</strong>
+        你开始从“代码怎么写”转向“为什么这样写、数据怎么流、什么时候刷新 UI”。
+        这是学习 Android 基础开发很重要的一步。
+    </section>
+
+    <h2>一、涉及到的知识点</h2>
+
+    <section class="section">
+        <h3>1. RSS / Atom / Feed 概念</h3>
+        <p><code>Feed</code> 不是文章本身，而是“订阅源”。一个订阅源下面可以有多篇文章。</p>
+        <pre><code>Feed 订阅源
+  ├── Article 文章 1
+  ├── Article 文章 2
+  └── Article 文章 3</code></pre>
+        <p>项目中的对应关系：</p>
+        <ul>
+            <li><code>FeedEntity</code>：保存订阅源信息，对应 <code>feeds</code> 表。</li>
+            <li><code>ArticleEntity</code>：保存文章信息，对应 <code>articles</code> 表。</li>
+            <li><code>ArticleEntity.feedId</code>：用于关联某篇文章属于哪个订阅源。</li>
+        </ul>
+    </section>
+
+    <section class="section">
+        <h3>2. XML 解析流程</h3>
+        <p>RSS 和 Atom 都是 XML 格式。项目中使用 <code>XmlPullParser</code> 解析。</p>
+        <ul>
+            <li><code>getEventType()</code>：读取当前解析器停留在哪个 XML 事件上。</li>
+            <li><code>next()</code>：移动到下一个 XML 事件，并返回新的事件类型。</li>
+        </ul>
+        <pre><code>START_DOCUMENT
+START_TAG rss
+START_TAG channel
+START_TAG title
+TEXT Demo
+END_TAG title
+END_TAG channel
+END_TAG rss
+END_DOCUMENT</code></pre>
+        <p>你还理解了为什么点进 <code>getEventType()</code> 看不到实现：<code>XmlPullParser</code> 是接口，具体实现由系统内部创建。</p>
+    </section>
+
+    <section class="section">
+        <h3>3. 网络读取</h3>
+        <p>项目使用 <code>HttpURLConnection</code> 请求订阅源 XML。</p>
+        <p><code>BufferedReader.readLine()</code> 会读取一行文本，但不会保留行尾换行符。因此代码里手动追加 <code>\n</code>：</p>
+        <pre><code>while ((line = reader.readLine()) != null) {
+    builder.append(line).append('\n');
+}</code></pre>
+        <p>这样可以尽量保留原始 XML 或 HTML 内容的文本结构。</p>
+    </section>
+
+    <section class="section">
+        <h3>4. Room 数据库</h3>
+        <p>你学习了 Room 插入方法的返回值：</p>
+        <pre><code>@Insert(onConflict = OnConflictStrategy.IGNORE)
+long insert(FeedEntity feed);</code></pre>
+        <ul>
+            <li>插入成功：返回新行的主键 id。</li>
+            <li>因为唯一约束冲突被忽略：返回 <code>-1</code>。</li>
+        </ul>
+        <p>也遇到了一个典型运行时问题：Room 默认不允许在主线程查询数据库，否则可能崩溃。</p>
+    </section>
+
+    <section class="section">
+        <h3>5. RecyclerView 数据刷新</h3>
+        <p>收藏状态改变后，列表不会自动更新，因为 Adapter 显示的是旧的内存数据。</p>
+        <pre><code>数据库改变
+!=
+RecyclerView 自动改变</code></pre>
+        <p>需要重新查询数据库，并调用 <code>submitList()</code> 或类似刷新方法更新 UI。</p>
+    </section>
+
+    <section class="section">
+        <h3>6. Activity 页面通信</h3>
+        <p>详情页修改收藏状态后，使用下面的流程通知列表页刷新：</p>
+        <pre><code>MainActivity
+  startActivityForResult()
+
+ArticleDetailActivity
+  setResult(RESULT_OK, result)
+
+MainActivity
+  onActivityResult()
+  refreshCurrentList()</code></pre>
+        <p><code>setResult()</code> 本身不是刷新动作，它只是准备返回结果。真正刷新发生在 <code>onActivityResult()</code> 中。</p>
+    </section>
+
+    <section class="section">
+        <h3>7. LinearLayout 布局</h3>
+        <p>你学习了如何让横向按钮之间保持统一间距：</p>
+        <ul>
+            <li>少量控件：使用 <code>layout_marginEnd</code>。</li>
+            <li>统一间隔：使用 <code>showDividers="middle"</code> 加透明 divider。</li>
+            <li>按钮平分宽度：使用 <code>layout_width="0dp"</code> 和 <code>layout_weight="1"</code>。</li>
+        </ul>
+    </section>
+
+    <h2>二、你的薄弱之处</h2>
+
+    <section class="section">
+        <h3>1. 数据对象和数据库实体的边界还不够稳</h3>
+        <p>一开始容易把 <code>ParsedFeed</code> 和 <code>FeedEntity</code> 混在一起。</p>
+        <pre><code>ParsedFeed      解析阶段的临时完整结果，包含文章列表
+FeedEntity      数据库里的订阅源表对象
+ArticleEntity   数据库里的文章表对象
+Adapter List    UI 当前显示的数据快照</code></pre>
+    </section>
+
+    <section class="section">
+        <h3>2. 异步和线程边界容易忽略</h3>
+        <p>Android 中要形成固定习惯：</p>
+        <pre><code>主线程：处理点击、更新 UI、Toast
+子线程：网络请求、Room 查询和写入
+Handler：把子线程结果切回主线程</code></pre>
+    </section>
+
+    <section class="section">
+        <h3>3. UI 刷新责任还需要更敏感</h3>
+        <p>修改数据库不等于 UI 自动更新。需要明确谁负责重新查询、谁负责提交新列表。</p>
+        <pre><code>repository.setFavorite()
+-> 数据库更新
+-> setResult()
+-> onActivityResult()
+-> refreshCurrentList()
+-> adapter.submitList()</code></pre>
+    </section>
+
+    <section class="section">
+        <h3>4. 方法命名和语义一致性需要加强</h3>
+        <p>例如 <code>hasFeed()</code> 如果实际返回的是 <code>isEmpty()</code>，后续逻辑会越来越绕。</p>
+        <p>命名应当让返回值含义一眼可读：</p>
+        <ul>
+            <li><code>feedIsEmpty()</code>：没有订阅源时返回 true。</li>
+            <li><code>hasFeeds()</code>：有订阅源时返回 true。</li>
+            <li><code>getAllFeedArticles()</code>：获取所有订阅源的所有文章。</li>
+        </ul>
+    </section>
+
+    <h2>三、该如何提升</h2>
+
+    <section class="section">
+        <h3>1. 每写一个功能，先画数据流</h3>
+        <p>例如“取消收藏后刷新列表”：</p>
+        <pre><code>点击取消收藏
+-> ArticleDetailActivity.toggleFavorite()
+-> RssRepository.setFavorite()
+-> ArticleDao 更新数据库
+-> setResult(RESULT_OK)
+-> 返回 MainActivity
+-> onActivityResult()
+-> refreshCurrentList()
+-> 重新查询数据库
+-> RecyclerView 更新</code></pre>
+    </section>
+
+    <section class="section">
+        <h3>2. 重点练三个 Android 基础能力</h3>
+        <ul>
+            <li>Activity 之间传值和返回结果。</li>
+            <li>子线程执行网络和数据库，主线程更新 UI。</li>
+            <li>RecyclerView Adapter 的数据刷新。</li>
+        </ul>
+    </section>
+
+    <section class="section">
+        <h3>3. 读代码时按层看</h3>
+        <pre><code>UI 层：用户点了什么？
+Repository 层：调用了什么业务方法？
+DAO 层：查了哪张表？
+Model 层：数据长什么样？
+UI 层：结果如何显示？</code></pre>
+    </section>
+
+    <section class="section">
+        <h3>4. 小改动后立即验证</h3>
+        <p>新增功能时建议按小步推进：</p>
+        <pre><code>加 DAO 查询
+-> build
+-> Repository 封装
+-> build
+-> UI 调用
+-> build
+-> 真机点击测试</code></pre>
+        <p>每次只引入一个变量，问题会更容易定位。</p>
+    </section>
+
+    <section class="section">
+        <h3>5. 学会看崩溃日志</h3>
+        <p>遇到崩溃时，优先在 Logcat 中找：</p>
+        <ul>
+            <li><code>FATAL EXCEPTION</code></li>
+            <li><code>Caused by</code></li>
+            <li>自己的包名：<code>com.yosuii.rssreader</code></li>
+        </ul>
+        <p>很多问题，例如主线程访问 Room，日志会直接告诉你原因。</p>
+    </section>
+
+    <h2>四、明天可以继续做什么</h2>
+
+    <section class="section">
+        <ul>
+            <li>给文章列表增加“所属订阅源名称”，练习 Room 的 JOIN 查询。</li>
+            <li>增加刷新订阅源功能，练习网络请求、去重和数据库更新。</li>
+            <li>把重复的线程切换代码整理成更清晰的工具方法。</li>
+            <li>给解析器添加简单单元测试，验证 RSS 和 Atom 都能解析。</li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

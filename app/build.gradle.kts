@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.recyclerview)
     implementation(libs.room.runtime)
+    implementation(libs.swiperefreshlayout)
     annotationProcessor(libs.room.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

@@ -65,6 +65,40 @@ public class RssRepository {
         articleDao.insertAll(articles);
     }
 
+    public void refreshFeed(FeedEntity feed) throws Exception {
+        String xml = fetcher.fetch(feed.url);
+        ParsedFeed parsedFeed = parser.parse(xml);
+
+        feed.title = parsedFeed.title.isEmpty() ? feed.url : parsedFeed.title;
+        feed.siteUrl = parsedFeed.siteUrl;
+        feed.description = parsedFeed.description;
+        feed.updatedAt = System.currentTimeMillis();
+        feedDao.update(feed);
+
+        List<ArticleEntity> articles = new ArrayList<>();
+        for (ParsedArticle article : parsedFeed.articles) {
+            String content = article.content.isEmpty() ? article.summary : article.content;
+            articles.add(new ArticleEntity(
+                    feed.id,
+                    article.title,
+                    article.link,
+                    article.summary,
+                    content,
+                    article.author,
+                    article.publishedAt,
+                    false
+            ));
+        }
+        articleDao.insertAll(articles);
+    }
+
+    public void refreshAllFeeds() throws Exception {
+        List<FeedEntity> feeds = feedDao.getAll();
+        for (FeedEntity feed : feeds) {
+            refreshFeed(feed);
+        }
+    }
+
     public List<FeedEntity> getFeeds() {
         return feedDao.getAll();
     }

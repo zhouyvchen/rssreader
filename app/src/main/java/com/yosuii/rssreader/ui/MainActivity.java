@@ -12,6 +12,7 @@ import android.widget.Toast;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.yosuii.rssreader.R;
 import com.yosuii.rssreader.data.RssRepository;
@@ -31,6 +32,7 @@ public class MainActivity extends Activity {
 
     private EditText feedUrlEditText;
     private TextView titleTextView;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private Button feedsButton;
     private Button articlesButton;
@@ -69,6 +71,7 @@ public class MainActivity extends Activity {
     private void bindViews() {
         feedUrlEditText = findViewById(R.id.feedUrlEditText);
         titleTextView = findViewById(R.id.titleTextView);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
         feedsButton = findViewById(R.id.feedsButton);
         articlesButton = findViewById(R.id.articlesButton);
@@ -78,6 +81,8 @@ public class MainActivity extends Activity {
 
     private void setupList() {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        swipeRefreshLayout.setColorSchemeResources(R.color.color_primary,
+                R.color.color_accent);
         feedAdapter = new FeedAdapter(feed -> {
             selectedFeed = feed;
             loadArticles(feed);
@@ -101,6 +106,7 @@ public class MainActivity extends Activity {
             loadAllArticles();
         });
         favoritesButton.setOnClickListener(v -> loadFavorites());
+        swipeRefreshLayout.setOnRefreshListener(this::refreshByPull);
     }
 
     private void addFeed() {
@@ -202,11 +208,67 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void refreshByPull() {
+        if (currentMode == MODE_ARTICLES && selectedFeed != null) {
+            refreshSelectedFeedByPull();
+        } else if (currentMode == MODE_ALL_ARTICLES) {
+            refreshAllFeedsByPull();
+        } else {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+    }
+
+    private void refreshSelectedFeedByPull() {
+        executor.execute(() -> {
+            try {
+                repository.refreshFeed(selectedFeed);
+                mainHandler.post(() -> {
+                    toast("刷新成功");
+                    swipeRefreshLayout.setRefreshing(false);
+                    refreshCurrentList();
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    toast("刷新失败: " + e.getMessage());
+                    swipeRefreshLayout.setRefreshing(false);
+                });
+            }
+        });
+    }
+
+    private void refreshAllFeedsByPull() {
+        executor.execute(() -> {
+            if (repository.feedIsEmpty()) {
+                mainHandler.post(() -> {
+                    toast("请先添加一个订阅");
+                    swipeRefreshLayout.setRefreshing(false);
+                });
+                return;
+            }
+
+            try {
+                repository.refreshAllFeeds();
+                mainHandler.post(() -> {
+                    toast("刷新成功");
+                    swipeRefreshLayout.setRefreshing(false);
+                    refreshCurrentList();
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    toast("刷新失败: " + e.getMessage());
+                    swipeRefreshLayout.setRefreshing(false);
+                });
+            }
+        });
+    }
+
     private void updateTabs() {
         setTabSelected(feedsButton, currentMode == MODE_FEEDS);
         setTabSelected(articlesButton, currentMode == MODE_ARTICLES);
         setTabSelected(feedStreamButton, currentMode == MODE_ALL_ARTICLES);
         setTabSelected(favoritesButton, currentMode == MODE_FAVORITES);
+        swipeRefreshLayout.setEnabled(currentMode == MODE_ARTICLES
+                || currentMode == MODE_ALL_ARTICLES);
     }
 
     private void setTabSelected(Button button, boolean selected) {

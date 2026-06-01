@@ -77,21 +77,6 @@
             android:textSize="14sp" />
 
         <Button
-            android:id="@+id/articlesButton"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="4dp"
-            android:layout_marginBottom="4dp"
-            android:layout_weight="1"
-            android:background="@drawable/bg_tab_button"
-            android:minWidth="0dp"
-            android:text="文章"
-            android:textAllCaps="false"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
-
-        <Button
             android:id="@+id/feedStreamButton"
             android:layout_width="0dp"
             android:layout_height="36dp"

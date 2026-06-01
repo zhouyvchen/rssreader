@@ -1,6 +1,7 @@
 package com.yosuii.rssreader.ui;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,16 +27,14 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
     private static final int REQUEST_ARTICLE_DETAIL = 1;
     private static final int MODE_FEEDS = 1;
-    private static final int MODE_ARTICLES = 2;
-    private static final int MODE_ALL_ARTICLES = 3;
-    private static final int MODE_FAVORITES = 4;
+    private static final int MODE_ALL_ARTICLES = 2;
+    private static final int MODE_FAVORITES = 3;
 
     private EditText feedUrlEditText;
     private TextView titleTextView;
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView recyclerView;
     private Button feedsButton;
-    private Button articlesButton;
     private Button feedStreamButton;
     private Button favoritesButton;
     private RssRepository repository;
@@ -74,7 +73,6 @@ public class MainActivity extends Activity {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         recyclerView = findViewById(R.id.recyclerView);
         feedsButton = findViewById(R.id.feedsButton);
-        articlesButton = findViewById(R.id.articlesButton);
         feedStreamButton = findViewById(R.id.feedStreamButton);
         favoritesButton = findViewById(R.id.favoritesButton);
     }
@@ -85,7 +83,7 @@ public class MainActivity extends Activity {
                 R.color.color_accent);
         feedAdapter = new FeedAdapter(feed -> {
             selectedFeed = feed;
-            loadArticles(feed);
+            loadAllArticles();
         });
         articleAdapter = new ArticleAdapter(this::openArticle);
     }
@@ -95,18 +93,17 @@ public class MainActivity extends Activity {
 
         addFeedButton.setOnClickListener(v -> addFeed());
         feedsButton.setOnClickListener(v -> loadFeeds());
-        articlesButton.setOnClickListener(v -> {
-            if (selectedFeed == null) {
-                toast("请先选择一个订阅源");
-            } else {
-                loadArticles(selectedFeed);
-            }
-        });
         feedStreamButton.setOnClickListener(v -> {
+            selectedFeed = null;
             loadAllArticles();
         });
         favoritesButton.setOnClickListener(v -> loadFavorites());
         swipeRefreshLayout.setOnRefreshListener(this::refreshByPull);
+        titleTextView.setOnClickListener(v -> {
+            if (currentMode == MODE_ALL_ARTICLES) {
+                showFeedSwitcher();
+            }
+        });
     }
 
     private void addFeed() {
@@ -137,7 +134,7 @@ public class MainActivity extends Activity {
     private void loadFeeds() {
         currentMode = MODE_FEEDS;
         updateTabs();
-        titleTextView.setText("订阅源");
+        setTitleText("订阅源", false);
         executor.execute(() -> {
             List<FeedEntity> feeds = repository.getFeeds();
             mainHandler.post(() -> {
@@ -147,23 +144,10 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void loadArticles(FeedEntity feed) {
-        currentMode = MODE_ARTICLES;
-        updateTabs();
-        titleTextView.setText(feed.title);
-        executor.execute(() -> {
-            List<ArticleEntity> articles = repository.getArticles(feed.id);
-            mainHandler.post(() -> {
-                recyclerView.setAdapter(articleAdapter);
-                articleAdapter.submitList(articles);
-            });
-        });
-    }
-
     private void loadAllArticles() {
         currentMode = MODE_ALL_ARTICLES;
         updateTabs();
-        titleTextView.setText("聚合文章流");
+        setTitleText(buildArticleStreamTitle(), true);
         executor.execute(() -> {
             if (repository.feedIsEmpty()) {
                 mainHandler.post(() -> {
@@ -171,7 +155,9 @@ public class MainActivity extends Activity {
                 });
                 return;
             }
-            List<ArticleEntity> articles = repository.getAllFeedArticles();
+            List<ArticleEntity> articles = selectedFeed == null
+                    ? repository.getAllFeedArticles()
+                    : repository.getArticles(selectedFeed.id);
             mainHandler.post(() -> {
                 recyclerView.setAdapter(articleAdapter);
                 articleAdapter.submitList(articles);
@@ -182,7 +168,7 @@ public class MainActivity extends Activity {
     private void loadFavorites() {
         currentMode = MODE_FAVORITES;
         updateTabs();
-        titleTextView.setText("收藏");
+        setTitleText("收藏", false);
         executor.execute(() -> {
             List<ArticleEntity> favorites = repository.getFavorites();
             mainHandler.post(() -> {
@@ -203,13 +189,11 @@ public class MainActivity extends Activity {
             loadFavorites();
         } else if (currentMode == MODE_ALL_ARTICLES) {
             loadAllArticles();
-        } else if (currentMode == MODE_ARTICLES && selectedFeed != null) {
-            loadArticles(selectedFeed);
         }
     }
 
     private void refreshByPull() {
-        if (currentMode == MODE_ARTICLES && selectedFeed != null) {
+        if (currentMode == MODE_ALL_ARTICLES && selectedFeed != null) {
             refreshSelectedFeedByPull();
         } else if (currentMode == MODE_ALL_ARTICLES) {
             refreshAllFeedsByPull();
@@ -264,11 +248,48 @@ public class MainActivity extends Activity {
 
     private void updateTabs() {
         setTabSelected(feedsButton, currentMode == MODE_FEEDS);
-        setTabSelected(articlesButton, currentMode == MODE_ARTICLES);
         setTabSelected(feedStreamButton, currentMode == MODE_ALL_ARTICLES);
         setTabSelected(favoritesButton, currentMode == MODE_FAVORITES);
-        swipeRefreshLayout.setEnabled(currentMode == MODE_ARTICLES
-                || currentMode == MODE_ALL_ARTICLES);
+        swipeRefreshLayout.setEnabled(currentMode == MODE_ALL_ARTICLES);
+    }
+
+    private void showFeedSwitcher() {
+        executor.execute(() -> {
+            List<FeedEntity> feeds = repository.getFeeds();
+            mainHandler.post(() -> {
+                if (feeds.isEmpty()) {
+                    toast("请先添加一个订阅");
+                    return;
+                }
+
+                String[] names = new String[feeds.size() + 1];
+                names[0] = "全部文章";
+                for (int i = 0; i < feeds.size(); i++) {
+                    names[i + 1] = feeds.get(i).title;
+                }
+
+                new AlertDialog.Builder(this)
+                        .setTitle("切换文章源")
+                        .setItems(names, (dialog, which) -> {
+                            selectedFeed = which == 0 ? null : feeds.get(which - 1);
+                            loadAllArticles();
+                        })
+                        .show();
+            });
+        });
+    }
+
+    private String buildArticleStreamTitle() {
+        String source = selectedFeed == null ? "全部" : selectedFeed.title;
+        return "聚合文章流 · " + source + " ▾";
+    }
+
+    private void setTitleText(String text, boolean canSwitchSource) {
+        titleTextView.setText(text);
+        titleTextView.setClickable(canSwitchSource);
+        titleTextView.setTextColor(getColor(canSwitchSource
+                ? R.color.color_primary
+                : R.color.text_primary));
     }
 
     private void setTabSelected(Button button, boolean selected) {

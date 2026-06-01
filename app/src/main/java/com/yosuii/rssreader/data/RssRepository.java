@@ -50,7 +50,8 @@ public class RssRepository {
 
         List<ArticleEntity> articles = new ArrayList<>();
         for (ParsedArticle article : parsedFeed.articles) {
-            String content = article.content.isEmpty() ? article.summary : article.content;
+            String content = article.content.isEmpty() ? article.summary :
+                    article.content;
             articles.add(new ArticleEntity(
                     feedId,
                     article.title,
@@ -59,6 +60,7 @@ public class RssRepository {
                     content,
                     article.author,
                     article.publishedAt,
+                    false,
                     false
             ));
         }
@@ -77,7 +79,8 @@ public class RssRepository {
 
         List<ArticleEntity> articles = new ArrayList<>();
         for (ParsedArticle article : parsedFeed.articles) {
-            String content = article.content.isEmpty() ? article.summary : article.content;
+            String content = article.content.isEmpty() ? article.summary :
+                    article.content;
             articles.add(new ArticleEntity(
                     feed.id,
                     article.title,
@@ -86,6 +89,7 @@ public class RssRepository {
                     content,
                     article.author,
                     article.publishedAt,
+                    false,
                     false
             ));
         }
@@ -108,7 +112,7 @@ public class RssRepository {
     }
 
     // 获取所有订阅源的所有文章
-    public List<ArticleEntity> getAllFeedArticles(){
+    public List<ArticleEntity> getAllFeedArticles() {
         return articleDao.getAll();
     }
 
@@ -124,7 +128,11 @@ public class RssRepository {
         articleDao.setFavorite(id, favorite);
     }
 
-    public boolean feedIsEmpty(){
+    public boolean feedIsEmpty() {
         return feedDao.getAll().isEmpty();
+    }
+
+    public void setRead(long id, boolean read) {
+        articleDao.setRead(id, read);
     }
 }

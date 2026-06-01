@@ -16,7 +16,8 @@ import androidx.room.PrimaryKey;
         indices = {
                 @Index("feedId"),
                 @Index(value = {"link"}, unique = true),
-                @Index("isFavorite")
+                @Index("isFavorite"),
+                @Index("isRead")
         }
 )
 public class ArticleEntity {
@@ -31,9 +32,10 @@ public class ArticleEntity {
     public String author;
     public long publishedAt;
     public boolean isFavorite;
+    public boolean isRead;
 
     public ArticleEntity(long feedId, String title, String link, String summary, String content,
-                         String author, long publishedAt, boolean isFavorite) {
+                         String author, long publishedAt, boolean isFavorite,boolean isRead) {
         this.feedId = feedId;
         this.title = title;
         this.link = link;
@@ -42,5 +44,6 @@ public class ArticleEntity {
         this.author = author;
         this.publishedAt = publishedAt;
         this.isFavorite = isFavorite;
+        this.isRead = isRead;
     }
 }

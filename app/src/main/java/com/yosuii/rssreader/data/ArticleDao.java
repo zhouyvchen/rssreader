@@ -11,10 +11,12 @@ import java.util.List;
 
 @Dao
 public interface ArticleDao {
-    @Query("SELECT * FROM articles WHERE feedId = :feedId ORDER BY publishedAt DESC, id DESC")
+    @Query("SELECT * FROM articles WHERE feedId = :feedId ORDER BY publishedAt" +
+            " DESC, id DESC")
     List<ArticleEntity> getByFeed(long feedId);
 
-    @Query("SELECT * FROM articles WHERE isFavorite = 1 ORDER BY publishedAt DESC, id DESC")
+    @Query("SELECT * FROM articles WHERE isFavorite = 1 ORDER BY publishedAt " +
+            "DESC, id DESC")
     List<ArticleEntity> getFavorites();
 
     @Query("SELECT * FROM articles WHERE id = :id LIMIT 1")
@@ -27,5 +29,8 @@ public interface ArticleDao {
     void setFavorite(long id, boolean favorite);
 
     @Query("SELECT * FROM articles ORDER BY publishedAt DESC, id DESC")
-    List<ArticleEntity>getAll();
+    List<ArticleEntity> getAll();
+
+    @Query("UPDATE articles SET isRead = :read WHERE id = :id")
+    void setRead(long id, boolean read);
 }

@@ -47,6 +47,14 @@ public class ArticleDetailActivity extends Activity {
         long articleId = getIntent().getLongExtra(EXTRA_ARTICLE_ID, -1L);
         executor.execute(() -> {
             ArticleEntity loadedArticle = repository.getArticle(articleId);
+
+            // 修改已读状态
+            ArticleEntity loadArticle = repository.getArticle(articleId);
+            if (loadArticle != null) {
+                repository.setRead(articleId, true);
+                loadArticle.isRead = true;
+                setResult(RESULT_OK);
+            }
             mainHandler.post(() -> showArticle(loadedArticle));
         });
     }

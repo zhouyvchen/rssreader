@@ -1,5 +1,6 @@
 package com.yosuii.rssreader.ui;
 
+import android.graphics.Typeface;
 import android.text.Html;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -38,18 +39,28 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ArticleV
 
     @NonNull
     @Override
-    public ArticleViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ArticleViewHolder onCreateViewHolder(@NonNull ViewGroup parent,
+                                                int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_article, parent, false);
         return new ArticleViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ArticleViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ArticleViewHolder holder,
+                                 int position) {
         ArticleEntity article = articles.get(position);
         holder.titleTextView.setText(article.title);
-        String summary = article.summary == null || article.summary.isEmpty() ? "暂无摘要" : article.summary;
-        holder.summaryTextView.setText(Html.fromHtml(summary, Html.FROM_HTML_MODE_COMPACT));
+        // 设置已/未读样式
+        holder.titleTextView.setTypeface(
+                null,
+                article.isRead ? Typeface.NORMAL : Typeface.BOLD
+        );
+        holder.itemView.setAlpha(article.isRead ? 0.62f : 1.0f);
+        String summary = article.summary == null || article.summary.isEmpty()
+                ? "暂无摘要" : article.summary;
+        holder.summaryTextView.setText(Html.fromHtml(summary,
+                Html.FROM_HTML_MODE_COMPACT));
         holder.metaTextView.setText(buildMeta(article));
         holder.favoriteTextView.setText(article.isFavorite ? "已收藏" : "");
         holder.itemView.setOnClickListener(v -> listener.onArticleClick(article));
@@ -71,15 +82,18 @@ public class ArticleAdapter extends RecyclerView.Adapter<ArticleAdapter.ArticleV
             titleTextView = itemView.findViewById(R.id.articleTitleTextView);
             summaryTextView = itemView.findViewById(R.id.articleSummaryTextView);
             metaTextView = itemView.findViewById(R.id.articleMetaTextView);
-            favoriteTextView = itemView.findViewById(R.id.articleFavoriteTextView);
+            favoriteTextView =
+                    itemView.findViewById(R.id.articleFavoriteTextView);
         }
     }
 
     private String buildMeta(ArticleEntity article) {
-        String author = article.author == null || article.author.isEmpty() ? "订阅文章" : article.author;
+        String author = article.author == null || article.author.isEmpty() ?
+                "订阅文章" : article.author;
         String time = article.publishedAt == 0L
                 ? "未知时间"
-                : new SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(new Date(article.publishedAt));
+                :
+                new SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(new Date(article.publishedAt));
         return author + " · " + time;
     }
 }
